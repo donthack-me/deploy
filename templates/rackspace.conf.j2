@@ -1,0 +1,31 @@
+rackspace_dfw:
+  # Set the location of the salt-master
+  #
+  minion:
+    master: {{ saltmaster }}
+
+  # Configure Rackspace using the OpenStack plugin
+  #
+  identity_url: 'https://identity.api.rackspacecloud.com/v2.0/tokens'
+  compute_name: cloudServersOpenStack
+  protocol: ipv4
+
+  # Set the compute region:
+  #
+  compute_region: DFW
+
+  # Configure Rackspace authentication credentials
+  #
+  user: {{ user_id }}
+  tenant: {{ tenant_id}}
+  apikey: {{ api_key }}
+
+  provider: openstack
+
+  networks:
+    - fixed:
+      - {{ salt_network }}
+      # This is Rackspace's "PublicNet"
+      - 00000000-0000-0000-0000-000000000000
+      # This is Rackspace's "ServiceNet"
+      - 11111111-1111-1111-1111-111111111111

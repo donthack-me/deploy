@@ -1,0 +1,12 @@
+dev.web:
+  provider: rackspace_dfw
+  size: 1 GB General Purpose v1
+  image: Debian 8 (Jessie) (PVHVM)
+  minion:
+    grains:
+      roles:
+        - webhead
+      region: dfw
+     start_action: state.highstate
+  metadata:
+    build_config: monitoring_defaults
