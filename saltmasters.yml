@@ -2,17 +2,9 @@
 - hosts: saltmasters
   remote_user: root
 
-  vars_prompt:
-    - name: "tenant_id"
-      prompt: "Openstack tenant_id for salt-cloud:"
-    - name: "user_id"
-      prompt: "Openstack user_id for salt-cloud:" 
-    - name: "api_key"
-      prompt: "Openstack api_key for salt-cloud:"
-    - name:  "salt_network"
-      prompt: "Openstack private network uuid for salt:"
-
   tasks:
+    - include_vars: .openstack_config.yml
+
     - name: Remove RAX default PasswordAuthentication
       replace:
         dest: /etc/ssh/sshd_config
@@ -35,14 +27,14 @@
         url: "http://debian.saltstack.com/debian-salt-team-joehealy.gpg.key"
         state: present
 
-    - name: Install Salt Minion and Master
+    - name: Install Salt Master
       apt:
         name: "{{ item }}"
         state: installed
         update_cache: yes
       with_items:
+        - python-git
         - salt-master
-        - salt-minion
         - salt-cloud
 
     - name: Configure Salt Master
@@ -51,11 +43,38 @@
         regexp: "^#interface: 0.0.0.0$"
         replace: "interface: {{ansible_eth2.ipv4.address }}"
 
-    - name: Configure Salt Minion
-      replace:
-        dest: /etc/salt/minion
-        regexp: "^master:.*$"
-        replace: "master: {{ saltmaster }}"
+    - name: Configure Salt Master GitFS
+      blockinfile:
+        dest: /etc/salt/master
+        block: |
+          fileserver_backend:
+            - git
+          gitfs_remotes:
+            - https://github.com/saltstack-formulas/salt-formula.git
+            - https://github.com/saltstack-formulas/docker-formula.git
+
+    - shell: "[ -f /etc/salt/pki/minion/minion.pem ]"
+      register: key_exists
+      ignore_errors: True
+
+    - shell: "[ -f /etc/salt/pki/minion/minion.pub ]"
+      register: pub_key_exists
+      ignore_errors: True
+
+    - name: Create Minion Key Folder
+      file:
+        dest: /etc/salt/pki/minion
+        state: directory
+
+    - name: Create Minion Keys
+      shell: "cd /etc/salt/pki/minion; /usr/bin/salt-key --gen-keys=minion"
+      when: key_exists|failed or pub_key_exists|failed
+      register: keys_created
+
+    - name: preseed key
+      command: cp /etc/salt/pki/minion/minion.pub /etc/salt/pki/master/minions/salt.donthack.me creates="/etc/salt/pki/master/minions/salt.donthack.me.pub"
+      when: keys_created|success
+      notify: restart minion
 
     - name: Salt-Cloud Providers Config
       template:
@@ -67,13 +86,34 @@
         src: rackspace_profiles.conf.j2
         dest: /etc/salt/cloud.profiles.d/rackspace.conf
 
-    - name: Start/Enable Salt Minion
+    - name: Install Salt Minion
+      apt:
+        name: salt-minion
+        state: installed
+        update_cache: yes
+
+    - name: Configure Salt Minion's Master
+      replace:
+        dest: /etc/salt/minion
+        regexp: "^master:.*$"
+        replace: "master: {{ saltmaster }}"
+
+    - name: Configure Salt Minion Grain
+      blockinfile:
+        dest: /etc/salt/minion
+        block: |
+          grains:
+            roles:
+              - saltmaster
+            region: dfw
+
+    - name: start Salt Minion
       service:
         name: salt-minion
         enabled: yes
         state: started
 
-    - name: Start/Enable Salt Master
+    - name: start Salt Master
       service: 
         name: salt-master
         enabled: yes
@@ -84,3 +124,13 @@
       service:
         name: sshd
         state: restarted
+    - name: restart minion
+      service:
+        name: salt-minion
+        state: restarted
+      notify: restart master
+    - name: restart master
+      service:
+        name: salt-master
+        state: restarted
+

@@ -16,15 +16,15 @@ rackspace_dfw:
 
   # Configure Rackspace authentication credentials
   #
-  user: {{ user_id }}
-  tenant: {{ tenant_id}}
-  apikey: {{ api_key }}
+  user: {{ os_user }}
+  tenant: {{ os_tenant }}
+  apikey: {{ os_apikey }}
 
   provider: openstack
 
   networks:
     - fixed:
-      - {{ salt_network }}
+      - {{ os_salt_network }}
       # This is Rackspace's "PublicNet"
       - 00000000-0000-0000-0000-000000000000
       # This is Rackspace's "ServiceNet"

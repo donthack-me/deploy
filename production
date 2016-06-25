@@ -2,7 +2,7 @@
 salt.donthack.me
 
 [dfw-salt-master:vars]
-saltmaster: salt.donthack.me
+saltmaster=salt.donthack.me
 
 [saltmasters:children]
 dfw-salt-master
