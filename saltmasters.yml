@@ -47,11 +47,20 @@
       blockinfile:
         dest: /etc/salt/master
         block: |
-          fileserver_backend:
-            - git
-          gitfs_remotes:
-            - https://github.com/saltstack-formulas/salt-formula.git
-            - https://github.com/saltstack-formulas/docker-formula.git
+           fileserver_backend:
+             - git
+             - roots
+           gitfs_remotes:
+             - https://github.com/saltstack-formulas/salt-formula.git
+             - https://github.com/donthack-me/docker-formula.git
+             - https://github.com/saltstack-formulas/users-formula.git
+             - https://github.com/saltstack-formulas/nfs-formula.git
+             - https://github.com/saltstack-formulas/letsencrypt-formula.git
+           gitfs_provider: gitpython
+           file_roots:
+             base:
+               - /srv/salt
+               - /etc/letsencrypt/live
 
     - shell: "[ -f /etc/salt/pki/minion/minion.pem ]"
       register: key_exists
@@ -92,16 +101,11 @@
         state: installed
         update_cache: yes
 
-    - name: Configure Salt Minion's Master
-      replace:
-        dest: /etc/salt/minion
-        regexp: "^master:.*$"
-        replace: "master: {{ saltmaster }}"
-
-    - name: Configure Salt Minion Grain
+    - name: Configure Salt Minion
       blockinfile:
         dest: /etc/salt/minion
         block: |
+          master: {{ansible_eth2.ipv4.address }}
           grains:
             roles:
               - saltmaster
